@@ -150,11 +150,15 @@ class OECDAPI_Databuilder:
         Create a merged DataFrame that combines the data for all indicators.
         Each CSV file is expected to contain 'REF_AREA', 'TIME_PERIOD', and 'OBS_VALUE' columns.
         We rename 'TIME_PERIOD' to 'date' and 'REF_AREA' to 'country', and then merge using these keys.
+        After merging:
+          - 'date' is converted from the format 'YYYY-Qn' into a datetime object (using the start of the quarter).
+          - 'country' is ensured to be a string.
+          - All other columns (indicator values) are coerced to float.
         """
         if not self.indicators:
             raise ValueError("No indicators found. Please check your configuration.")
-        
-        merged_df = None  # Start with an empty structure
+    
+        merged_df = None
         for indicator in self.indicators:
             csv_file = os.path.join(self.dbpath, f"{indicator}.csv")
             try:
@@ -163,27 +167,46 @@ class OECDAPI_Databuilder:
                 print(f"No file fetched for {csv_file}: {e}!")
                 continue
             
-            # Rename the standard columns to universal names and the observation column to the indicator name.
+            # Rename to common names and rename the observation column to the indicator’s own name.
             df = df.rename(columns={
-                "TIME_PERIOD": "date", 
-                "REF_AREA": "country", 
+                "TIME_PERIOD": "date",
+                "REF_AREA": "country",
                 "OBS_VALUE": indicator
             })
-            # If the merged_df is empty, initialize it.
+            # Merge dataframes on ['date', 'country'] using outer join
             if merged_df is None:
                 merged_df = df
             else:
                 merged_df = pd.merge(merged_df, df, on=["date", "country"], how="outer")
-        
+    
         if merged_df is None:
             raise ValueError("No data was loaded from any CSV file.")
-        
-        # Optional cleaning: sort by date and country, and reset the index.
+    
+        # Convert date strings in format 'YYYY-Qn', 'YYYY-MM', or 'YYYY' to datetime (using start of period)
+        try:
+            freq = self.freq.upper()
+            if freq == 'Q':
+                merged_df["date"] = merged_df["date"].apply(lambda x: pd.Period(x, freq="Q").start_time)
+            elif freq == 'M':
+                merged_df["date"] = merged_df["date"].apply(lambda x: pd.Period(x, freq="M").start_time)
+            elif freq == 'Y':
+                # For yearly dates, using 'A' (annual) frequency converts "YYYY" to a Period object for the year.
+                merged_df["date"] = merged_df["date"].apply(lambda x: pd.Period(x, freq="A").start_time)
+            else:
+                print(f"Warning: Unsupported frequency '{self.freq}'. Date conversion not performed.")
+        except Exception as e:
+            print(f"Error converting date column: {e}")
+
+    
+        # Ensure that the country column is string.
+        merged_df["country"] = merged_df["country"].astype(str)
+    
+        # Convert all indicator columns to float.
+        for col in merged_df.columns:
+            if col not in ["date", "country"]:
+                merged_df[col] = pd.to_numeric(merged_df[col], errors="coerce")
+
         merged_df = merged_df.sort_values(by=["date", "country"]).reset_index(drop=True)
-        # Convert 'date' to datetime or period if needed:
-        # For example, if dates are in the format 'YYYY-Qn', you might parse them using custom logic.
         
-        # Additional cleaning steps can be added here.
-        
-        final_df = merged_df
-        return final_df
+        return merged_df
+

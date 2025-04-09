@@ -1,4 +1,4 @@
-# Configuration file
+# recipe.py
 QNADATA = {
     "real_gdp": {
         "FREQ": "Q",
@@ -90,21 +90,6 @@ QNADATA = {
         "TRANSFORMATION": "",
         "TABLE_IDENTIFIER": ""
     },
-    "real_gdp_per": {
-        "FREQ": "Q",
-        "ADJUSTMENT": "",
-        "REF_AREA": "KOR+CAN+USA+CHN+GBR+DEU+FRA+JPN+ITA+IND+MEX+IRL",
-        "SECTOR": "",
-        "COUNTERPART_SECTOR": "",
-        "TRANSACTION": "B1GQ_POP",
-        "INSTR_ASSET": "",
-        "ACTIVITY": "",
-        "EXPENDITURE": "",
-        "UNIT_MEASURE": "",
-        "PRICE_BASE": "LR",
-        "TRANSFORMATION": "",
-        "TABLE_IDENTIFIER": ""
-    },
     "population": {
         "FREQ": "Q",
         "ADJUSTMENT": "N",
@@ -135,5 +120,9 @@ QNADATA = {
         "TRANSFORMATION": "G1",
         "TABLE_IDENTIFIER": "T0110"
     },
+}
+
+QNADATA2 = {
+    
 }
 
