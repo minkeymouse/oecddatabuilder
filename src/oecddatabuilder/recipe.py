@@ -1,6 +1,6 @@
 # recipe.py
-QNADATA = {
-    "real_gdp": {
+QNA = {
+    "Y": {
         "FREQ": "Q",
         "ADJUSTMENT": "",
         "REF_AREA": "KOR+CAN+USA+CHN+GBR+DEU+FRA+JPN+ITA+IND+MEX+IRL",
@@ -15,7 +15,7 @@ QNADATA = {
         "TRANSFORMATION": "",
         "TABLE_IDENTIFIER": ""
     },
-    "consumption_household": {
+    "C": {
         "FREQ": "Q",
         "ADJUSTMENT": "",
         "REF_AREA": "KOR+CAN+USA+CHN+GBR+DEU+FRA+JPN+ITA+IND+MEX+IRL",
@@ -30,7 +30,7 @@ QNADATA = {
         "TRANSFORMATION": "",
         "TABLE_IDENTIFIER": ""
     },
-    "consumption_gov": {
+    "G": {
         "FREQ": "Q",
         "ADJUSTMENT": "",
         "REF_AREA": "KOR+CAN+USA+CHN+GBR+DEU+FRA+JPN+ITA+IND+MEX+IRL",
@@ -45,7 +45,7 @@ QNADATA = {
         "TRANSFORMATION": "",
         "TABLE_IDENTIFIER": ""
     },
-    "capital": {
+    "I": {
         "FREQ": "Q",
         "ADJUSTMENT": "",
         "REF_AREA": "KOR+CAN+USA+CHN+GBR+DEU+FRA+JPN+ITA+IND+MEX+IRL",
@@ -60,7 +60,7 @@ QNADATA = {
         "TRANSFORMATION": "",
         "TABLE_IDENTIFIER": ""
     },
-    "export": {
+    "EX": {
         "FREQ": "Q",
         "ADJUSTMENT": "",
         "REF_AREA": "KOR+CAN+USA+CHN+GBR+DEU+FRA+JPN+ITA+IND+MEX+IRL",
@@ -75,7 +75,7 @@ QNADATA = {
         "TRANSFORMATION": "",
         "TABLE_IDENTIFIER": ""
     },
-    "import": {
+    "IM": {
         "FREQ": "Q",
         "ADJUSTMENT": "",
         "REF_AREA": "KOR+CAN+USA+CHN+GBR+DEU+FRA+JPN+ITA+IND+MEX+IRL",
@@ -89,40 +89,6 @@ QNADATA = {
         "PRICE_BASE": "LR",
         "TRANSFORMATION": "",
         "TABLE_IDENTIFIER": ""
-    },
-    "population": {
-        "FREQ": "Q",
-        "ADJUSTMENT": "N",
-        "REF_AREA": "KOR+CAN+USA+CHN+GBR+DEU+FRA+JPN+ITA+IND+MEX+IRL",
-        "SECTOR": "",
-        "COUNTERPART_SECTOR": "",
-        "TRANSACTION": "POP",
-        "INSTR_ASSET": "",
-        "ACTIVITY": "",
-        "EXPENDITURE": "",
-        "UNIT_MEASURE": "PS",
-        "PRICE_BASE": "",
-        "TRANSFORMATION": "G1",
-        "TABLE_IDENTIFIER": "T0110"
-    },
-    "employment": {
-        "FREQ": "Q",
-        "ADJUSTMENT": "N",
-        "REF_AREA": "KOR+CAN+USA+CHN+GBR+DEU+FRA+JPN+ITA+IND+MEX+IRL",
-        "SECTOR": "",
-        "COUNTERPART_SECTOR": "",
-        "TRANSACTION": "EMP",
-        "INSTR_ASSET": "",
-        "ACTIVITY": "",
-        "EXPENDITURE": "",
-        "UNIT_MEASURE": "",
-        "PRICE_BASE": "",
-        "TRANSFORMATION": "G1",
-        "TABLE_IDENTIFIER": "T0110"
-    },
-}
-
-QNADATA2 = {
-    
+    }
 }
 
