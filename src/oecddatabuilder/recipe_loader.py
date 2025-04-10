@@ -2,10 +2,11 @@ import json
 from typing import Dict, Any, Optional
 from pathlib import Path
 import os
-import requests
-import xml.etree.ElementTree as ET
 import logging
 import copy
+import requests
+from lxml import etree
+from .utils import create_retry_session  # Import the retry-enabled session helper
 
 # Set up logging configuration.
 logger = logging.getLogger(__name__)
@@ -112,11 +113,11 @@ _DEFAULT_RECIPE = {
     }
 }
 
+
 class RecipeLoader:
     def __init__(self, recipe_config: Optional[Dict[str, Any]] = None) -> None:
         """
         Initialize the RecipeLoader instance.
-
         The built-in defaults are used only for initializing the in-memory configuration.
         """
         if recipe_config is None:
@@ -124,14 +125,13 @@ class RecipeLoader:
             self.recipe = copy.deepcopy(_DEFAULT_RECIPE)
         else:
             self.recipe = recipe_config
-        
+
         self._update_recipe()
 
     def _update_recipe(self) -> None:
         """
         Write the current in-memory recipe configuration to the user configuration file.
-
-        This method bypasses any merging with stored defaults and writes the configuration as-is.
+        Bypasses merging with stored defaults; writes the configuration as-is.
         """
         try:
             self._atomic_write(str(USER_CONFIG_PATH), self.recipe)
@@ -142,7 +142,7 @@ class RecipeLoader:
     def _atomic_write(self, output_file: str, data: Dict[str, Any]) -> None:
         """
         Atomically write the given data as JSON to output_file.
-        Writes first to a temporary file and then replaces the target file
+        Writes to a temporary file first, then replaces the target file
         to minimize the risk of partial writes.
 
         :param output_file: Path to the target JSON file.
@@ -161,14 +161,13 @@ class RecipeLoader:
     def _deep_merge(self, source: Dict[Any, Any], overrides: Dict[Any, Any]) -> Dict[Any, Any]:
         """
         Recursively merge the 'overrides' dictionary into the 'source' dictionary.
-        This helper is retained for cases where partial updates are needed.
-        For keys present in both dictionaries:
-          - If both values are dictionaries, merge them recursively.
+        For keys present in both:
+          - If both values are dictionaries, merge recursively.
           - Otherwise, the override value replaces the source value.
 
-        :param source: The original configuration dictionary.
-        :param overrides: The dictionary with override values.
-        :return: The merged dictionary.
+        :param source: Original configuration dictionary.
+        :param overrides: Dictionary with override values.
+        :return: Merged dictionary.
         """
         merged = copy.deepcopy(source)
         for key, override_value in overrides.items():
@@ -181,13 +180,12 @@ class RecipeLoader:
     def load(self, recipe_name: str) -> Dict[str, Any]:
         """
         Load the recipe configuration for the specified recipe group.
+        If a user configuration file exists and contains an override for the group,
+        it will replace the in-memory configuration for that group; otherwise, the
+        originally initialized configuration is used.
 
-        If a user configuration file exists and contains an override for the given
-        recipe group, it will replace the in-memory configuration for that group.
-        Otherwise, the originally initialized configuration is used.
-
-        :param recipe_name: The key identifying the recipe group.
-        :return: The configuration dictionary for the specified recipe group.
+        :param recipe_name: Key identifying the recipe group.
+        :return: Configuration dictionary for the specified recipe group.
         """
         if USER_CONFIG_PATH.exists():
             try:
@@ -197,7 +195,7 @@ class RecipeLoader:
                     self.recipe[recipe_name] = user_config[recipe_name]
                     logger.info(f"User configuration loaded for group '{recipe_name}'.")
                 else:
-                    logger.info(f"No user configuration found for group '{recipe_name}'. Using in-memory configuration.")
+                    logger.info(f"No user configuration for group '{recipe_name}'. Using in-memory configuration.")
             except Exception as e:
                 logger.error(f"Error loading user configuration from {USER_CONFIG_PATH}: {e}")
         else:
@@ -207,56 +205,68 @@ class RecipeLoader:
     def update_recipe_from_url(self, recipe_name: str, indicator_urls: Dict[str, str]) -> None:
         """
         Update the recipe configuration for a specific group using indicator URLs.
-
-        For each indicator in indicator_urls, fetch the XML metadata from the provided URL and 
-        update the configuration with the retrieved metadata. If the indicator does not exist,
-        a new entry is created.
-
-        After updating the in-memory configuration, the changes are written to the user configuration file.
-
-        :param recipe_name: The key identifying the recipe group to update.
-        :param indicator_urls: A mapping of indicator keys to their associated URLs.
+        For each indicator, fetch the XML data from the provided URL and extract the
+        transaction filters from the first <Series> element's <SeriesKey> component.
+        The extracted values (e.g. FREQ, ADJUSTMENT, REF_AREA, SECTOR, etc.) are stored
+        into the recipe for the given indicator key. The URL is stored under "URL".
+        Finally, the updated configuration is written to the user configuration file.
+        
+        :param recipe_name: Key identifying the recipe group to update.
+        :param indicator_urls: Mapping of indicator keys to their associated URLs.
         """
-        # Get the current configuration for the specified group.
+        # Retrieve or initialize the configuration for the specified group.
         recipe_config = self.recipe.get(recipe_name, {})
 
-        # Define a headers dictionary to request the proper SDMX-ML structure-specific data format.
+        # HTTP headers for requesting the proper SDMX generic XML format.
         headers = {
-            "Accept": "application/vnd.sdmx.structurespecificdata+xml; charset=utf-8; version=2.1"
+            "Accept": "application/vnd.sdmx.genericdata+xml; charset=utf-8; version=2.1"
         }
+
+        # Use a retry-enabled session from utils.
+        session = create_retry_session()
 
         for indicator, url in indicator_urls.items():
             if indicator not in recipe_config:
                 logger.info(f"Indicator '{indicator}' not found in group '{recipe_name}'. Creating new entry.")
                 recipe_config[indicator] = {}
-            recipe_config[indicator]["URL"] = url
             logger.info(f"Updated indicator '{indicator}' with URL: {url}")
-            try:
-                # Request the metadata with the appropriate Accept header.
-                response = requests.get(url, headers=headers)
-                response.raise_for_status()
-                root = ET.fromstring(response.content)
-                # Namespace-agnostic search for the <Concept> element.
-                concept = root.find('.//*[local-name()="Concept"]')
-                if concept is not None:
-                    concept_id = (concept.find('.//*[local-name()="ID"]').text 
-                                if concept.find('.//*[local-name()="ID"]') is not None else "")
-                    description = (concept.find('.//*[local-name()="Description"]').text 
-                                if concept.find('.//*[local-name()="Description"]') is not None else "")
-                    recipe_config[indicator]["variable_example"] = {
-                        "id": concept_id,
-                        "description": description
-                    }
-                    logger.info(f"Metadata updated for '{indicator}': ID={concept_id}, Description={description}")
-                else:
-                    logger.warning(f"No Concept metadata found for '{indicator}' at URL: {url}")
-            except Exception as e:
-                logger.error(f"Failed to update metadata for '{indicator}' from URL {url}: {e}")
 
-        # Update the in-memory configuration.
+            try:
+                response = session.get(url, headers=headers)
+                response.raise_for_status()
+                root = etree.fromstring(response.content)
+
+                # Use lxml's XPath to find the first <Series> element.
+                series_list = root.xpath('//*[local-name()="Series"]')
+                if series_list:
+                    series = series_list[0]
+                    series_key_list = series.xpath('.//*[local-name()="SeriesKey"]')
+                    if series_key_list:
+                        series_key = series_key_list[0]
+                        new_config = {}
+                        # Retrieve all <Value> elements from the SeriesKey.
+                        value_elements = series_key.xpath('.//*[local-name()="Value"]')
+                        for value_elem in value_elements:
+                            key_attr = value_elem.get("id")
+                            val_attr = value_elem.get("value")
+                            if key_attr and val_attr:
+                                new_config[key_attr] = val_attr
+                        if new_config:
+                            recipe_config[indicator].update(new_config)
+                            logger.info(f"Metadata for indicator '{indicator}' updated with: {new_config}")
+                        else:
+                            logger.warning(f"No metadata extracted from SeriesKey for indicator '{indicator}' from URL: {url}")
+                    else:
+                        logger.warning(f"No <SeriesKey> element found in the XML from URL: {url} for indicator '{indicator}'")
+                else:
+                    logger.warning(f"No <Series> element found in the XML from URL: {url} for indicator '{indicator}'")
+            except Exception as e:
+                logger.error(f"Failed to update metadata for indicator '{indicator}' from URL {url}: {e}")
+
+        # Update in-memory configuration.
         self.recipe[recipe_name] = recipe_config
 
-        # Write back the updated configuration to the user configuration file.
+        # Write the updated configuration back to the user configuration file.
         try:
             if USER_CONFIG_PATH.exists():
                 with USER_CONFIG_PATH.open("r", encoding="utf-8") as f:

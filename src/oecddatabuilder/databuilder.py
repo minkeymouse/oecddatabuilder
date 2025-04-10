@@ -7,7 +7,7 @@ from tqdm import tqdm
 import time
 from io import StringIO
 from typing import List, Dict, Optional, Tuple, Any
-import xml.etree.ElementTree as ET
+from .utils import create_retry_session  # Import the retry session helper from utils
 
 # Set up logging configuration.
 logger = logging.getLogger(__name__)
@@ -18,38 +18,6 @@ BASE_DIR = Path(__file__).resolve().parent
 # This assumes a specific directory structure relative to this file.
 DATA_DIR = (BASE_DIR / ".." / ".." / "datasets" / "OECD").resolve()
 
-# --- Session and Retry Setup --- #
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
-
-def create_retry_session(timeout: int = 10) -> requests.Session:
-    """
-    Create and return a requests.Session object that uses a retry strategy.
-    
-    :param timeout: Global timeout (in seconds) to be used for requests.
-    :return: Configured requests.Session object.
-    """
-    session = requests.Session()
-    retries = Retry(
-        total=5,
-        backoff_factor=1,  # Exponential backoff: 1, 2, 4, 8, ... seconds.
-        status_forcelist=[429, 500, 502, 503, 504],
-        raise_on_status=False
-    )
-    adapter = HTTPAdapter(max_retries=retries)
-    session.mount("https://", adapter)
-    session.mount("http://", adapter)
-    # Optionally, you can configure default timeouts on a session level by wrapping session.request.
-    original_request = session.request
-
-    def request_with_timeout(*args, **kwargs):
-        kwargs.setdefault("timeout", timeout)
-        return original_request(*args, **kwargs)
-
-    session.request = request_with_timeout
-    return session
-
-# --- OECDAPI_Databuilder Class --- #
 class OECDAPI_Databuilder:
     def __init__(self, 
                  config: Dict[str, Dict[str, str]],
@@ -151,14 +119,14 @@ class OECDAPI_Databuilder:
         if self.response_format == "csv":
             return pd.read_csv(StringIO(resp_text))
         elif self.response_format == "json":
-            # Use pandas read_json on a StringIO object.
             return pd.read_json(StringIO(resp_text))
         elif self.response_format == "xml":
+            # pd.read_xml uses lxml under the hood if available.
             return pd.read_xml(StringIO(resp_text))
         else:
             raise ValueError("Unsupported response_format")
     
-    def fetch_data(self, chunk_size: int = 100) -> "OECDAPI_Databuilder":
+    def fetch_data(self, chunk_size: int = None) -> "OECDAPI_Databuilder":
         """
         Fetch data from the OECD API in chunks to avoid timeouts and rate-limit issues.
         Saves the concatenated results for each indicator as a CSV file.
@@ -168,6 +136,9 @@ class OECDAPI_Databuilder:
         """
         # Generate a Pandas period range from start to end.
         period_range = pd.period_range(start=self.start, end=self.end, freq=self.freq)
+
+        if chunk_size == None:
+            chunk_size = period_range
 
         for indicator, conf in self.config.items():
             filter_order = list(conf.keys())

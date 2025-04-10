@@ -5,20 +5,19 @@ import logging
 from typing import Dict, Any, Optional
 
 import requests
-import xml.etree.ElementTree as ET
-
-from . import OECDAPI_Databuilder
-from . import RecipeLoader
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
+__all__ = ["test_api_connection", "test_recipe", "create_retry_session"]
 
 def test_api_connection() -> None:
     """
     Performs a simple test of the OECD API by sending a request to a known query URL.
     
-    Logs a success message if the connection is successful or an error message if it fails.
+    Logs a success message if the connection is successful, or an error message if it fails.
     """
     test_url = (
         "https://sdmx.oecd.org/public/rest/data/"
@@ -41,8 +40,7 @@ def test_recipe(recipe_conf: Optional[Dict[str, Any]] = None) -> None:
     this test uses a minimal time range (a single quarter) to avoid blocking.
     
     If no recipe configuration is provided, the function loads the default configuration
-    for the 'QNADATA' recipe group using the RecipeLoader. (Change the recipe group name
-    as needed.)
+    for the 'QNADATA' recipe group using the RecipeLoader. (Adjust the recipe group name as needed.)
     
     Parameters:
         recipe_conf (Optional[Dict[str, Any]]): The recipe configuration dictionary.
@@ -52,11 +50,10 @@ def test_recipe(recipe_conf: Optional[Dict[str, Any]] = None) -> None:
     if recipe_conf is None:
         try:
             loader = RecipeLoader()
-            # Replace 'QNADATA' with the appropriate key from your built-in defaults.
-            recipe_conf = loader.load("QNADATA")
-            logger.info("Using default recipe configuration: 'QNADATA'.")
+            recipe_conf = loader.load("DEFAULT")
+            logger.info("Using default recipe configuration: 'DEFAULT'.")
         except ValueError as e:
-            logger.error(f"Default recipe configuration 'QNADATA' not found: {e}")
+            logger.error(f"Default recipe configuration 'DEFAULT' not found: {e}")
             return
 
     logger.warning(
@@ -83,3 +80,37 @@ def test_recipe(recipe_conf: Optional[Dict[str, Any]] = None) -> None:
         logger.info(f"Test recipe successful. DataFrame shape: {df.shape}")
     except Exception as e:
         logger.error(f"Test recipe failed: {e}")
+
+
+def create_retry_session(timeout: int = 10) -> requests.Session:
+    """
+    Create and return a requests.Session object that uses a retry strategy.
+    
+    :param timeout: Global timeout (in seconds) to be used for requests.
+    :return: Configured requests.Session object.
+    """
+    session = requests.Session()
+    retries = Retry(
+        total=5,
+        backoff_factor=1,  # Exponential backoff: 1, 2, 4, 8, ... seconds.
+        status_forcelist=[429, 500, 502, 503, 504],
+        raise_on_status=False
+    )
+    adapter = HTTPAdapter(max_retries=retries)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    # Wrap the session.request to enforce a default timeout.
+    original_request = session.request
+
+    def request_with_timeout(*args, **kwargs):
+        kwargs.setdefault("timeout", timeout)
+        return original_request(*args, **kwargs)
+
+    session.request = request_with_timeout
+    return session
+
+
+if __name__ == "__main__":
+    # Optional main block for standalone testing.
+    test_api_connection()
+    test_recipe()
