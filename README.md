@@ -10,11 +10,12 @@
 
 - This made users really difficult to use API for downloading and forced many of them going back to using GUI online.
 
-- Because of this, I have created
+- Because of this, I have created program so researchers(mainly economists) can pre-decide what time series to download for what countries and later easily download them whenever there's update or they need to.
 
-# Previous research
+- Researchers can also modify, delete, create the recipe in order to adjust data.
 
-- There has been many attempts to create
+- This project has nothing to do with OECD and was made purly out of my initiative.
+
 
 # Features
 

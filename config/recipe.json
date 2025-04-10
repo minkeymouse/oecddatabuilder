@@ -90,55 +90,5 @@
             "TRANSFORMATION": "",
             "TABLE_IDENTIFIER": ""
         }
-    },
-    "TUTORIAL": {
-        "A": {
-            "FREQ": "Q",
-            "ADJUSTMENT": "Y",
-            "REF_AREA": "AUT",
-            "SECTOR": "S13",
-            "COUNTERPART_SECTOR": "S1",
-            "ACCOUNTING_ENTRY": "D",
-            "TRANSACTION": "P3",
-            "INSTR_ASSET": "_Z",
-            "EXPENDITURE": "_Z",
-            "UNIT_MEASURE": "XDC",
-            "VALUATION": "S",
-            "PRICE_BASE": "V",
-            "TRANSFORMATION": "N",
-            "TABLE_IDENTIFIER": "T0801"
-        },
-        "B": {
-            "FREQ": "Q",
-            "ADJUSTMENT": "N",
-            "REF_AREA": "AUT",
-            "SECTOR": "S1M",
-            "COUNTERPART_SECTOR": "S1",
-            "ACCOUNTING_ENTRY": "D",
-            "TRANSACTION": "D1",
-            "INSTR_ASSET": "_Z",
-            "EXPENDITURE": "_Z",
-            "UNIT_MEASURE": "XDC",
-            "VALUATION": "S",
-            "PRICE_BASE": "V",
-            "TRANSFORMATION": "N",
-            "TABLE_IDENTIFIER": "T0801"
-        },
-        "C": {
-            "FREQ": "Q",
-            "ADJUSTMENT": "N",
-            "REF_AREA": "AUT",
-            "SECTOR": "S1",
-            "COUNTERPART_SECTOR": "S1",
-            "ACCOUNTING_ENTRY": "D",
-            "TRANSACTION": "P5",
-            "INSTR_ASSET": "_Z",
-            "EXPENDITURE": "_Z",
-            "UNIT_MEASURE": "XDC",
-            "VALUATION": "S",
-            "PRICE_BASE": "V",
-            "TRANSFORMATION": "N",
-            "TABLE_IDENTIFIER": "T0801"
-        }
     }
 }
