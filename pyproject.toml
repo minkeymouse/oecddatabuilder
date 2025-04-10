@@ -1,7 +1,7 @@
 [project]
 name = "oecddatabuilder"
 version = "0.1.0"
-description = ""
+description = "This is a tool for using OECD API builder and creating multiple time series dataframe for economic analysis purposes"
 authors = [
     {name = "minkeymouse",email = "minkey.chang@gmail.com"}
 ]
@@ -9,7 +9,8 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
     "pandas (>=2.2.3,<3.0.0)",
-    "requests (>=2.32.3,<3.0.0)"
+    "requests (>=2.32.3,<3.0.0)",
+    "tqdm" (>=4.50)
 ]
 
 [tool.poetry]

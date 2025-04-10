@@ -9,7 +9,6 @@ import xml.etree.ElementTree as ET
 
 from . import OECDAPI_Databuilder
 from . import RecipeLoader
-from . import recipe
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -41,20 +40,23 @@ def test_recipe(recipe_conf: Optional[Dict[str, Any]] = None) -> None:
     Due to strict OECD API limits (20 queries per minute and 20 downloads per hour),
     this test uses a minimal time range (a single quarter) to avoid blocking.
     
-    If no recipe configuration is provided, the function defaults to using 'QNADATA'
-    from the recipe module.
+    If no recipe configuration is provided, the function loads the default configuration
+    for the 'QNADATA' recipe group using the RecipeLoader. (Change the recipe group name
+    as needed.)
     
     Parameters:
         recipe_conf (Optional[Dict[str, Any]]): The recipe configuration dictionary.
-                                                 If None, defaults to recipe.QNADATA.
+                                                 If None, the default 'QNADATA' configuration is loaded.
     """
-    # Use default recipe if none provided.
+    # Load default recipe via RecipeLoader if no external configuration is provided.
     if recipe_conf is None:
-        if hasattr(recipe, "QNADATA"):
-            recipe_conf = recipe.QNADATA
+        try:
+            loader = RecipeLoader()
+            # Replace 'QNADATA' with the appropriate key from your built-in defaults.
+            recipe_conf = loader.load("QNADATA")
             logger.info("Using default recipe configuration: 'QNADATA'.")
-        else:
-            logger.error("No recipe configuration provided and default recipe (QNADATA) not found.")
+        except ValueError as e:
+            logger.error(f"Default recipe configuration 'QNADATA' not found: {e}")
             return
 
     logger.warning(
@@ -62,7 +64,7 @@ def test_recipe(recipe_conf: Optional[Dict[str, Any]] = None) -> None:
         "20 downloads per hour), this test uses a minimal time range to avoid blocking."
     )
 
-    # Use a minimal test period (one quarter) to minimize API calls.
+    # Define a minimal test period to reduce the number of API calls.
     test_start = "2024-Q1"
     test_end = "2024-Q1"
 

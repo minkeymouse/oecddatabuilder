@@ -1,11 +1,11 @@
 import json
 from typing import Dict, Any, Optional
-from . import recipe
 from pathlib import Path
 import os
 import requests
 import xml.etree.ElementTree as ET
 import logging
+import copy
 
 # Set up logging configuration.
 logger = logging.getLogger(__name__)
@@ -14,32 +14,139 @@ logging.basicConfig(level=logging.INFO)
 # Compute the base and config directories relative to this file.
 BASE_DIR = Path(__file__).resolve().parent
 CONFIG_DIR = (BASE_DIR / ".." / ".." / "config").resolve()
-USER_CONFIG_PATH = CONFIG_DIR / "user_recipe.json"
+USER_CONFIG_PATH = CONFIG_DIR / "recipe.json"
+
+# The built-in defaults are now placed under the "DEFAULT" group.
+_DEFAULT_RECIPE = {
+    "DEFAULT": {
+        "Y": {
+            "FREQ": "Q",
+            "ADJUSTMENT": "",
+            "REF_AREA": "KOR+CAN+USA+CHN+GBR+DEU+FRA+JPN+ITA+IND+MEX+IRL",
+            "SECTOR": "S1",
+            "COUNTERPART_SECTOR": "",
+            "TRANSACTION": "B1GQ",
+            "INSTR_ASSET": "",
+            "ACTIVITY": "",
+            "EXPENDITURE": "",
+            "UNIT_MEASURE": "USD_PPP",
+            "PRICE_BASE": "LR",
+            "TRANSFORMATION": "",
+            "TABLE_IDENTIFIER": ""
+        },
+        "C": {
+            "FREQ": "Q",
+            "ADJUSTMENT": "",
+            "REF_AREA": "KOR+CAN+USA+CHN+GBR+DEU+FRA+JPN+ITA+IND+MEX+IRL",
+            "SECTOR": "S1M",
+            "COUNTERPART_SECTOR": "",
+            "TRANSACTION": "P3",
+            "INSTR_ASSET": "",
+            "ACTIVITY": "",
+            "EXPENDITURE": "",
+            "UNIT_MEASURE": "USD_PPP",
+            "PRICE_BASE": "LR",
+            "TRANSFORMATION": "",
+            "TABLE_IDENTIFIER": ""
+        },
+        "G": {
+            "FREQ": "Q",
+            "ADJUSTMENT": "",
+            "REF_AREA": "KOR+CAN+USA+CHN+GBR+DEU+FRA+JPN+ITA+IND+MEX+IRL",
+            "SECTOR": "S13",
+            "COUNTERPART_SECTOR": "",
+            "TRANSACTION": "P3",
+            "INSTR_ASSET": "",
+            "ACTIVITY": "",
+            "EXPENDITURE": "",
+            "UNIT_MEASURE": "USD_PPP",
+            "PRICE_BASE": "LR",
+            "TRANSFORMATION": "",
+            "TABLE_IDENTIFIER": ""
+        },
+        "I": {
+            "FREQ": "Q",
+            "ADJUSTMENT": "",
+            "REF_AREA": "KOR+CAN+USA+CHN+GBR+DEU+FRA+JPN+ITA+IND+MEX+IRL",
+            "SECTOR": "S1",
+            "COUNTERPART_SECTOR": "",
+            "TRANSACTION": "P51G",
+            "INSTR_ASSET": "",
+            "ACTIVITY": "",
+            "EXPENDITURE": "",
+            "UNIT_MEASURE": "USD_PPP",
+            "PRICE_BASE": "LR",
+            "TRANSFORMATION": "",
+            "TABLE_IDENTIFIER": ""
+        },
+        "EX": {
+            "FREQ": "Q",
+            "ADJUSTMENT": "",
+            "REF_AREA": "KOR+CAN+USA+CHN+GBR+DEU+FRA+JPN+ITA+IND+MEX+IRL",
+            "SECTOR": "S1",
+            "COUNTERPART_SECTOR": "",
+            "TRANSACTION": "P6",
+            "INSTR_ASSET": "",
+            "ACTIVITY": "",
+            "EXPENDITURE": "",
+            "UNIT_MEASURE": "USD_PPP",
+            "PRICE_BASE": "LR",
+            "TRANSFORMATION": "",
+            "TABLE_IDENTIFIER": ""
+        },
+        "IM": {
+            "FREQ": "Q",
+            "ADJUSTMENT": "",
+            "REF_AREA": "KOR+CAN+USA+CHN+GBR+DEU+FRA+JPN+ITA+IND+MEX+IRL",
+            "SECTOR": "S1",
+            "COUNTERPART_SECTOR": "",
+            "TRANSACTION": "P7",
+            "INSTR_ASSET": "",
+            "ACTIVITY": "",
+            "EXPENDITURE": "",
+            "UNIT_MEASURE": "USD_PPP",
+            "PRICE_BASE": "LR",
+            "TRANSFORMATION": "",
+            "TABLE_IDENTIFIER": ""
+        }
+    }
+}
 
 class RecipeLoader:
     def __init__(self, recipe_config: Optional[Dict[str, Any]] = None) -> None:
         """
         Initialize the RecipeLoader instance.
 
-        :param recipe_config: The default recipe configuration dictionary.
-                              If None, uses the default recipe (e.g., recipe.QNA).
+        The built-in defaults are used only for initializing the in-memory configuration.
         """
         if recipe_config is None:
-            # Assume the default recipe group is QNA defined in the recipe module.
-            if not hasattr(recipe, "QNA"):
-                raise ValueError("Default recipe 'QNA' not found in recipe module.")
-            self.recipe = recipe.QNA.copy()
+            # Use built-in defaults for initialization.
+            self.recipe = copy.deepcopy(_DEFAULT_RECIPE)
         else:
             self.recipe = recipe_config
+        
+        self._update_recipe()
+
+    def _update_recipe(self) -> None:
+        """
+        Write the current in-memory recipe configuration to the user configuration file.
+
+        This method bypasses any merging with stored defaults and writes the configuration as-is.
+        """
+        try:
+            self._atomic_write(str(USER_CONFIG_PATH), self.recipe)
+            logger.info(f"User configuration updated successfully in {USER_CONFIG_PATH}.")
+        except Exception as e:
+            logger.error(f"Error saving updated recipe configuration: {e}")
 
     def _atomic_write(self, output_file: str, data: Dict[str, Any]) -> None:
         """
         Atomically write the given data as JSON to output_file.
         Writes first to a temporary file and then replaces the target file
-        to minimize the risk of partial writes or race conditions.
-        
+        to minimize the risk of partial writes.
+
         :param output_file: Path to the target JSON file.
-        :param data: The dictionary data to write.
+        :param data: The configuration data to write.
         """
         temp_file = output_file + ".tmp"
         try:
@@ -54,113 +161,112 @@ class RecipeLoader:
     def _deep_merge(self, source: Dict[Any, Any], overrides: Dict[Any, Any]) -> Dict[Any, Any]:
         """
         Recursively merge the 'overrides' dictionary into the 'source' dictionary.
-        For any key present in both dictionaries:
+        This helper is retained for cases where partial updates are needed.
+        For keys present in both dictionaries:
           - If both values are dictionaries, merge them recursively.
-          - Otherwise, the value from overrides replaces the value in source.
-        
-        :param source: The original dictionary.
+          - Otherwise, the override value replaces the source value.
+
+        :param source: The original configuration dictionary.
         :param overrides: The dictionary with override values.
         :return: The merged dictionary.
         """
+        merged = copy.deepcopy(source)
         for key, override_value in overrides.items():
-            if key in source and isinstance(source[key], dict) and isinstance(override_value, dict):
-                source[key] = self._deep_merge(source[key], override_value)
+            if key in merged and isinstance(merged[key], dict) and isinstance(override_value, dict):
+                merged[key] = self._deep_merge(merged[key], override_value)
             else:
-                source[key] = override_value
-        return source
+                merged[key] = override_value
+        return merged
 
     def load(self, recipe_name: str) -> Dict[str, Any]:
         """
-        Load the active recipe configuration for the given recipe group.
-        
-        Priority:
-          1. Built-in defaults from recipe.py.
-          2. User overrides from config/user_recipe.json, if available.
-          
-        Merging is performed recursively.
+        Load the recipe configuration for the specified recipe group.
 
-        :param recipe_name: The name of the recipe group (e.g., "QNA").
-        :return: The merged configuration dictionary.
-        :raises ValueError: If the recipe group is not found in the recipe module.
+        If a user configuration file exists and contains an override for the given
+        recipe group, it will replace the in-memory configuration for that group.
+        Otherwise, the originally initialized configuration is used.
+
+        :param recipe_name: The key identifying the recipe group.
+        :return: The configuration dictionary for the specified recipe group.
         """
-        if not hasattr(recipe, recipe_name):
-            raise ValueError(f"Recipe '{recipe_name}' not found in the recipe module.")
-        
-        config = getattr(recipe, recipe_name).copy()
-        logger.info(f"Loaded default configuration for recipe '{recipe_name}'.")
-
         if USER_CONFIG_PATH.exists():
             try:
                 with USER_CONFIG_PATH.open("r", encoding="utf-8") as f:
                     user_config = json.load(f)
                 if recipe_name in user_config:
-                    config = self._deep_merge(config, user_config[recipe_name])
-                    logger.info(f"User overrides found and merged for '{recipe_name}'.")
+                    self.recipe[recipe_name] = user_config[recipe_name]
+                    logger.info(f"User configuration loaded for group '{recipe_name}'.")
+                else:
+                    logger.info(f"No user configuration found for group '{recipe_name}'. Using in-memory configuration.")
             except Exception as e:
-                logger.error(f"Error loading user configuration: {e}")
+                logger.error(f"Error loading user configuration from {USER_CONFIG_PATH}: {e}")
         else:
-            logger.info(f"No user override configuration found at {USER_CONFIG_PATH}.")
+            logger.info(f"No user configuration file found at {USER_CONFIG_PATH}. Using in-memory configuration.")
+        return self.recipe.get(recipe_name, {})
 
-        # Update the internal recipe configuration.
-        self.recipe = config
-        return config
-
-    def update_recipe(self, recipe_name: str, indicator_urls: Dict[str, str]) -> None:
+    def update_recipe_from_url(self, recipe_name: str, indicator_urls: Dict[str, str]) -> None:
         """
-        Update the recipe configuration with new URL values and XML metadata.
-        
-        For each indicator provided in indicator_urls:
-          1. Updates (or creates) the indicator entry in the designated recipe group.
-          2. Sets the URL.
-          3. Fetches XML metadata from the URL, extracts the first Concept's ID and Description,
-             and stores them as "variable_example" within the indicator's configuration.
-          4. Persists the updated configuration to the external JSON file.
-          
-        :param recipe_name: The name of the recipe group (e.g., "QNA").
-        :param indicator_urls: A dictionary mapping indicator names (e.g., "productivity")
-                               to the complete URL.
-        :raises ValueError: If the recipe group is not found.
-        """
-        if not hasattr(recipe, recipe_name):
-            raise ValueError(f"Recipe '{recipe_name}' not found in the recipe module.")
+        Update the recipe configuration for a specific group using indicator URLs.
 
-        # Get the base configuration from the recipe module.
-        recipe_config = getattr(recipe, recipe_name)
-        logger.info(f"Updating recipe for recipe group '{recipe_name}'.")
+        For each indicator in indicator_urls, fetch the XML metadata from the provided URL and 
+        update the configuration with the retrieved metadata. If the indicator does not exist,
+        a new entry is created.
+
+        After updating the in-memory configuration, the changes are written to the user configuration file.
+
+        :param recipe_name: The key identifying the recipe group to update.
+        :param indicator_urls: A mapping of indicator keys to their associated URLs.
+        """
+        # Get the current configuration for the specified group.
+        recipe_config = self.recipe.get(recipe_name, {})
+
+        # Define a headers dictionary to request the proper SDMX-ML structure-specific data format.
+        headers = {
+            "Accept": "application/vnd.sdmx.structurespecificdata+xml; charset=utf-8; version=2.1"
+        }
 
         for indicator, url in indicator_urls.items():
             if indicator not in recipe_config:
-                logger.info(f"Indicator '{indicator}' not found in recipe '{recipe_name}'. Creating new entry.")
+                logger.info(f"Indicator '{indicator}' not found in group '{recipe_name}'. Creating new entry.")
                 recipe_config[indicator] = {}
             recipe_config[indicator]["URL"] = url
-            logger.info(f"Updated recipe for '{indicator}' with URL: {url}")
-
+            logger.info(f"Updated indicator '{indicator}' with URL: {url}")
             try:
-                response = requests.get(url)
+                # Request the metadata with the appropriate Accept header.
+                response = requests.get(url, headers=headers)
                 response.raise_for_status()
                 root = ET.fromstring(response.content)
-                concept = root.find('.//Concept')
+                # Namespace-agnostic search for the <Concept> element.
+                concept = root.find('.//*[local-name()="Concept"]')
                 if concept is not None:
-                    concept_id = concept.find('ID').text if concept.find('ID') is not None else ""
-                    description = concept.find('Description').text if concept.find('Description') is not None else ""
+                    concept_id = (concept.find('.//*[local-name()="ID"]').text 
+                                if concept.find('.//*[local-name()="ID"]') is not None else "")
+                    description = (concept.find('.//*[local-name()="Description"]').text 
+                                if concept.find('.//*[local-name()="Description"]') is not None else "")
                     recipe_config[indicator]["variable_example"] = {
                         "id": concept_id,
                         "description": description
                     }
-                    logger.info(f"Metadata for '{indicator}' updated: ID={concept_id}, Description={description}")
+                    logger.info(f"Metadata updated for '{indicator}': ID={concept_id}, Description={description}")
                 else:
                     logger.warning(f"No Concept metadata found for '{indicator}' at URL: {url}")
             except Exception as e:
-                logger.error(f"Failed to fetch/update metadata for indicator '{indicator}' from URL {url}: {e}")
+                logger.error(f"Failed to update metadata for '{indicator}' from URL {url}: {e}")
 
-        # Persist the updated recipe externally.
-        output_file = str(USER_CONFIG_PATH)
+        # Update the in-memory configuration.
+        self.recipe[recipe_name] = recipe_config
+
+        # Write back the updated configuration to the user configuration file.
         try:
-            updated_recipe = {recipe_name: recipe_config}
-            with open(output_file, "w", encoding="utf-8") as f:
-                json.dump(updated_recipe, f, indent=4)
-            logger.info(f"Updated recipe for '{recipe_name}' saved to {output_file}.")
+            if USER_CONFIG_PATH.exists():
+                with USER_CONFIG_PATH.open("r", encoding="utf-8") as f:
+                    current_overrides = json.load(f)
+            else:
+                current_overrides = {}
+            current_overrides[recipe_name] = recipe_config
+            self._atomic_write(str(USER_CONFIG_PATH), current_overrides)
+            logger.info(f"Recipe group '{recipe_name}' updated successfully in {USER_CONFIG_PATH}.")
         except Exception as e:
-            logger.error(f"Error saving updated recipe to file: {e}")
+            logger.error(f"Error saving updated recipe for group '{recipe_name}': {e}")
 
         logger.info("Recipe update completed successfully.")
