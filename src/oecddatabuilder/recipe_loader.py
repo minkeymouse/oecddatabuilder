@@ -14,8 +14,7 @@ from typing import Any, Dict, cast
 
 from lxml import etree  # Ensure lxml is installed
 
-from .utils import \
-    create_retry_session  # Import the retry session helper from utils
+from .utils import create_retry_session  # Import the retry session helper from utils
 
 # Set up logging configuration.
 logger = logging.getLogger(__name__)
