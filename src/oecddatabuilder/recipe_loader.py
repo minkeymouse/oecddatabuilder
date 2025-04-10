@@ -5,16 +5,17 @@ This module defines the RecipeLoader class that loads, merges, and updates recip
 configurations used for fetching and processing OECD API data.
 """
 
-from pathlib import Path
-import logging
-import os
 import copy
 import json
-from typing import Dict, Any, cast
+import logging
+import os
+from pathlib import Path
+from typing import Any, Dict, cast
 
 from lxml import etree  # Ensure lxml is installed
 
-from .utils import create_retry_session  # Import the retry session helper from utils
+from .utils import \
+    create_retry_session  # Import the retry session helper from utils
 
 # Set up logging configuration.
 logger = logging.getLogger(__name__)

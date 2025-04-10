@@ -1,0 +1,15 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: "23.3.0"  # Use the latest stable revision or your preferred version.
+    hooks:
+      - id: black
+
+  - repo: https://github.com/pre-commit/mirrors-isort
+    rev: v5.9.3  # Update to the version you prefer.
+    hooks:
+      - id: isort
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.0.0  # Or your preferred version.
+    hooks:
+      - id: flake8

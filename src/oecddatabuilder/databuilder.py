@@ -4,13 +4,14 @@ constructing queries to the OECD API, fetching data in chunks to avoid rate limi
 and merging the data into CSV files and a consolidated pandas DataFrame.
 """
 
-from pathlib import Path
 import logging
-import pandas as pd
-from tqdm import tqdm
 import time
 from io import StringIO
-from typing import List, Dict, Optional, Tuple, Any
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+import pandas as pd
+from tqdm import tqdm
 
 from .utils import create_retry_session  # Retry session helper
 
@@ -111,13 +112,13 @@ class OECDAPI_Databuilder:
         if self.response_format == "csv":
             headers["Accept"] = "application/vnd.sdmx.data+csv; charset=utf-8"
         elif self.response_format == "json":
-            headers["Accept"] = (
-                "application/vnd.sdmx.data+json; charset=utf-8; version=2"
-            )
+            headers[
+                "Accept"
+            ] = "application/vnd.sdmx.data+json; charset=utf-8; version=2"
         elif self.response_format == "xml":
-            headers["Accept"] = (
-                "application/vnd.sdmx.genericdata+xml; charset=utf-8; version=2.1"
-            )
+            headers[
+                "Accept"
+            ] = "application/vnd.sdmx.genericdata+xml; charset=utf-8; version=2.1"
         else:
             raise ValueError("response_format must be one of: csv, json, xml")
         return headers

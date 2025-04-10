@@ -29,6 +29,7 @@ types-requests = "^2.32.0.20250328"
 lxml-stubs = "^0.5.1"
 pandas-stubs = "^2.2.3.250308"
 types-tqdm = "^4.67.0.20250404"
+pytest = "^8.3.5"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
