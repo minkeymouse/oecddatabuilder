@@ -1,4 +1,9 @@
 # oecddatabuilder/__init__.py
+"""
+This module provides functions and classes for handling the OECD data API,
+including building queries, fetching data, and managing configuration
+recipes for indicator metadata.
+"""
 
 # Import the classes and functions so they are available at the package level.
 from .databuilder import OECDAPI_Databuilder
