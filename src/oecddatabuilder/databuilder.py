@@ -1,3 +1,9 @@
+"""
+This module provides the OECDAPI_Databuilder class, which is responsible for
+constructing queries to the OECD API, fetching data in chunks to avoid rate limits,
+and merging the data into CSV files and a consolidated pandas DataFrame.
+"""
+
 from pathlib import Path
 import logging
 import pandas as pd
@@ -5,7 +11,8 @@ from tqdm import tqdm
 import time
 from io import StringIO
 from typing import List, Dict, Optional, Tuple, Any
-from .utils import create_retry_session
+
+from .utils import create_retry_session  # Retry session helper
 
 # Set up logging configuration.
 logger = logging.getLogger(__name__)
@@ -13,7 +20,6 @@ logging.basicConfig(level=logging.INFO)
 
 # Compute the base directory and the data directory.
 BASE_DIR = Path(__file__).resolve().parent
-# This assumes a specific directory structure relative to this file.
 DATA_DIR = (BASE_DIR / ".." / ".." / "datasets" / "OECD").resolve()
 
 
@@ -71,7 +77,7 @@ class OECDAPI_Databuilder:
         self.session = create_retry_session()
 
     def _build_time_chunks(
-        self, period_range: pd.PeriodIndex, chunk_size: Optional[int]
+        self, period_range: pd.PeriodIndex, chunk_size: int
     ) -> List[Tuple[str, str]]:
         """
         Build a list of time chunk tuples (start, end) for the given period_range.
@@ -128,7 +134,7 @@ class OECDAPI_Databuilder:
         elif self.response_format == "json":
             return pd.read_json(StringIO(resp_text))
         elif self.response_format == "xml":
-            # pd.read_xml uses lxml under the hood if available.
+            # pd.read_xml uses lxml under the hood.
             return pd.read_xml(StringIO(resp_text))
         else:
             raise ValueError("Unsupported response_format")
@@ -139,13 +145,13 @@ class OECDAPI_Databuilder:
         Saves the concatenated results for each indicator as a CSV file.
 
         :param chunk_size: Number of periods to include in each API request.
+                           If None, a default value of 100 will be used.
         :return: self
         """
-        # Generate a Pandas period range from start to end.
         period_range = pd.period_range(start=self.start, end=self.end, freq=self.freq)
 
         if chunk_size is None:
-            chunk_size = period_range
+            chunk_size = 100  # Default chunk size
 
         for indicator, conf in self.config.items():
             filter_order = list(conf.keys())
@@ -156,7 +162,6 @@ class OECDAPI_Databuilder:
                 f"For indicator '{indicator}', processing time chunks: {time_chunks}"
             )
 
-            # Build the filter string for the URL.
             filter_values = [conf.get(key, "") for key in filter_order]
             filter_url = ".".join(filter_values)
             if not self.base_url:
@@ -166,7 +171,6 @@ class OECDAPI_Databuilder:
 
             headers = self._get_headers()
 
-            # Loop over all time chunks and aggregate data.
             for chunk_start, chunk_end in tqdm(
                 time_chunks, desc=f"Downloading {indicator} Data"
             ):
@@ -179,7 +183,6 @@ class OECDAPI_Databuilder:
                     resp.raise_for_status()
                     chunk_df = self._parse_response(resp.text)
 
-                    # Check for expected columns.
                     expected_cols = {"REF_AREA", "TIME_PERIOD", "OBS_VALUE"}
                     if expected_cols.issubset(chunk_df.columns):
                         chunk_df = chunk_df[["REF_AREA", "TIME_PERIOD", "OBS_VALUE"]]
@@ -192,13 +195,12 @@ class OECDAPI_Databuilder:
                     logger.info(
                         f"Chunk {chunk_start} to {chunk_end}: {chunk_df.shape[0]} rows fetched."
                     )
-                except Exception as e:
+                except Exception as error:
                     logger.error(
-                        f"Error fetching chunk {chunk_start} to {chunk_end} for '{indicator}': {e}"
+                        f"Error fetching chunk {chunk_start} to {chunk_end} for '{indicator}': {error}"
                     )
                 time.sleep(self.request_interval)
 
-            # Concatenate the chunks if data was fetched.
             if all_chunks:
                 indicator_df = pd.concat(all_chunks, ignore_index=True)
             else:
@@ -214,12 +216,10 @@ class OECDAPI_Databuilder:
     def _convert_date(self, date_str: str) -> Any:
         """
         Convert a date string into a datetime object based on the frequency.
-
         Supported formats:
           - Quarterly: "YYYY-Qn"
           - Monthly: "YYYY-MM"
           - Yearly: "YYYY"
-
         :param date_str: Date string from the data.
         :return: Corresponding datetime object or the original string on failure.
         """
@@ -235,23 +235,20 @@ class OECDAPI_Databuilder:
                     f"Unsupported frequency '{self.freq}' for date conversion."
                 )
                 return date_str
-        except Exception as e:
-            logger.error(f"Error converting date string '{date_str}': {e}")
+        except Exception as error:
+            logger.error(f"Error converting date string '{date_str}': {error}")
             return date_str
 
     def create_dataframe(self) -> pd.DataFrame:
         """
         Merge CSV data for all indicators into a single DataFrame.
-
         For each indicator, the CSV file is expected to have the columns:
             'REF_AREA', 'TIME_PERIOD', 'OBS_VALUE'
-
         The merging process:
           - Renames 'TIME_PERIOD' to 'date' and 'REF_AREA' to 'country'
           - Merges on ['date', 'country'] using an outer join
           - Converts date strings using _convert_date
           - Ensures that indicator values are numeric
-
         :return: Merged pandas DataFrame.
         :raises: ValueError if no CSV files are found.
         """
@@ -263,11 +260,10 @@ class OECDAPI_Databuilder:
             csv_file = self.dbpath / f"{indicator}.csv"
             try:
                 df = pd.read_csv(csv_file)
-            except Exception as e:
-                logger.error(f"File not found or unable to read {csv_file}: {e}")
+            except Exception as error:
+                logger.error(f"File not found or unable to read {csv_file}: {error}")
                 continue
 
-            # Rename columns for merging.
             df = df.rename(
                 columns={
                     "TIME_PERIOD": "date",
@@ -283,13 +279,8 @@ class OECDAPI_Databuilder:
         if merged_df is None:
             raise ValueError("No data was loaded from any CSV file.")
 
-        # Convert date strings to datetime objects.
         merged_df["date"] = merged_df["date"].apply(self._convert_date)
-
-        # Ensure the 'country' column is string type.
         merged_df["country"] = merged_df["country"].astype(str)
-
-        # Convert all indicator columns (except date and country) to numeric.
         for col in merged_df.columns:
             if col not in ["date", "country"]:
                 merged_df[col] = pd.to_numeric(merged_df[col], errors="coerce")

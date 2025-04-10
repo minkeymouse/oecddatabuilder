@@ -1,5 +1,3 @@
-# src/oecddatabuilder/utils.py
-
 import logging
 from typing import Dict, Any, Optional
 
@@ -29,7 +27,7 @@ def test_api_connection() -> None:
         resp.raise_for_status()
         logger.info("API connection successful.")
     except Exception as e:
-        logger.error(f"API Test failed: {e}")
+        logger.error("API Test failed: %s", e)
 
 
 def test_recipe(
@@ -48,7 +46,6 @@ def test_recipe(
         recipe_conf (Optional[Dict[str, Any]]): The recipe configuration dictionary.
                                                  If None, the default 'DEFAULT' configuration is loaded.
     """
-    # Load default recipe via RecipeLoader if no external configuration is provided.
     from .databuilder import OECDAPI_Databuilder
     from .recipe_loader import RecipeLoader
 
@@ -58,7 +55,7 @@ def test_recipe(
             recipe_conf = loader.load("DEFAULT")
             logger.info("Using default recipe configuration: 'DEFAULT'.")
         except ValueError as e:
-            logger.error(f"Default recipe configuration 'DEFAULT' not found: {e}")
+            logger.error("Default recipe configuration 'DEFAULT' not found: %s", e)
             return
 
     logger.warning(
@@ -66,7 +63,6 @@ def test_recipe(
         "20 downloads per hour), this test uses a minimal time range to avoid blocking."
     )
 
-    # Define a minimal test period to reduce the number of API calls.
     test_start = "2024-Q1"
     test_end = "2024-Q1"
 
@@ -79,44 +75,46 @@ def test_recipe(
             response_format="csv",
             base_url=base_url,
         )
-        # Use a small chunk size to limit the number of API calls.
         builder.fetch_data(chunk_size=1)
         df = builder.create_dataframe()
-        logger.info(f"Test recipe successful. DataFrame shape: {df.shape}")
+        logger.info("Test recipe successful. DataFrame shape: %s", df.shape)
     except Exception as e:
-        logger.error(f"Test recipe failed: {e}")
+        logger.error("Test recipe failed: %s", e)
+
+
+class TimeoutSession(requests.Session):
+    """
+    A custom requests.Session subclass that enforces a default timeout for all requests.
+    """
+
+    def __init__(self, timeout: int = 10) -> None:
+        super().__init__()
+        self.timeout = timeout
+        retries = Retry(
+            total=5,
+            backoff_factor=1,  # Exponential backoff: 1, 2, 4, 8, ... seconds.
+            status_forcelist=[429, 500, 502, 503, 504],
+            raise_on_status=False,
+        )
+        adapter = HTTPAdapter(max_retries=retries)
+        self.mount("https://", adapter)
+        self.mount("http://", adapter)
+
+    def request(self, method, url, **kwargs):
+        kwargs.setdefault("timeout", self.timeout)
+        return super().request(method, url, **kwargs)
 
 
 def create_retry_session(timeout: int = 10) -> requests.Session:
     """
-    Create and return a requests.Session object that uses a retry strategy.
+    Create and return a TimeoutSession object that uses a retry strategy and enforces a timeout.
 
-    :param timeout: Global timeout (in seconds) to be used for requests.
+    :param timeout: Global timeout (in seconds) for requests.
     :return: Configured requests.Session object.
     """
-    session = requests.Session()
-    retries = Retry(
-        total=5,
-        backoff_factor=1,  # Exponential backoff: 1, 2, 4, 8, ... seconds.
-        status_forcelist=[429, 500, 502, 503, 504],
-        raise_on_status=False,
-    )
-    adapter = HTTPAdapter(max_retries=retries)
-    session.mount("https://", adapter)
-    session.mount("http://", adapter)
-
-    # Wrap the session.request to enforce a default timeout.
-    original_request = session.request
-
-    def request_with_timeout(*args, **kwargs):
-        kwargs.setdefault("timeout", timeout)
-        return original_request(*args, **kwargs)
-
-    session.request = request_with_timeout
-    return session
+    return TimeoutSession(timeout=timeout)
 
 
 if __name__ == "__main__":
-    # Optional main block for standalone testing.
     test_api_connection()
     test_recipe()

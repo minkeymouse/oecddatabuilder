@@ -1,11 +1,19 @@
+"""
+Module for loading and updating OECD API recipe configurations.
+
+This module defines the RecipeLoader class that loads, merges, and updates recipe
+configurations used for fetching and processing OECD API data.
+"""
+
+from pathlib import Path
+import logging
 import os
 import copy
 import json
-import logging
-from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, cast
 
 from lxml import etree  # Ensure lxml is installed
+
 from .utils import create_retry_session  # Import the retry session helper from utils
 
 # Set up logging configuration.
@@ -117,8 +125,10 @@ class RecipeLoader:
     def __init__(self, verbose: bool = False) -> None:
         """
         Initialize the RecipeLoader instance.
+
         Attempts to load an existing recipe configuration from RECIPE_PATH.
-        If the file does not exist or is invalid, creates a new recipe file using _DEFAULT_RECIPE.
+        If the file does not exist or is invalid, creates a new recipe file using
+        _DEFAULT_RECIPE.
 
         :param verbose: If True, logs additional information.
         """
@@ -133,7 +143,7 @@ class RecipeLoader:
                 if self.verbose:
                     logger.info("Loaded recipe configuration from file.")
             except Exception as e:
-                logger.error(f"Error loading recipe file: {e}")
+                logger.error("Error loading recipe file: %s", e)
                 logger.warning(
                     "Creating new recipe configuration with default settings."
                 )
@@ -150,7 +160,6 @@ class RecipeLoader:
         """
         Atomically write the given data as JSON to output_file.
         Writes to a temporary file first, then replaces the target file.
-
         :param output_file: Path to the target JSON file.
         :param data: The configuration data to write.
         """
@@ -159,9 +168,9 @@ class RecipeLoader:
             with open(temp_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=4)
             os.replace(temp_file, output_file)
-            logger.info(f"Atomic write successful to {output_file}")
+            logger.info("Atomic write successful to %s", output_file)
         except Exception as e:
-            logger.error(f"Error performing atomic write to {output_file}: {e}")
+            logger.error("Error performing atomic write to %s: %s", output_file, e)
             raise
 
     def _deep_merge(
@@ -172,7 +181,6 @@ class RecipeLoader:
         For keys present in both dictionaries:
           - If both values are dictionaries, merge them recursively.
           - Otherwise, the override value replaces the source value.
-
         :param source: The original configuration dictionary.
         :param overrides: The dictionary with override values.
         :return: The merged configuration dictionary.
@@ -193,7 +201,6 @@ class RecipeLoader:
         """
         Load the recipe configuration for the specified recipe group.
         Merges any stored overrides from the recipe file with the in-memory configuration.
-
         :param recipe_name: Key identifying the recipe group.
         :return: The configuration dictionary for the specified group.
         """
@@ -202,20 +209,23 @@ class RecipeLoader:
                 with RECIPE_PATH.open("r", encoding="utf-8") as f:
                     user_config = json.load(f)
                 if recipe_name in user_config:
-                    # Merge the stored configuration with the in-memory one.
                     self.recipe[recipe_name] = self._deep_merge(
                         self.recipe.get(recipe_name, {}), user_config[recipe_name]
                     )
-                    logger.info(f"User configuration merged for group '{recipe_name}'.")
+                    logger.info(
+                        "User configuration merged for group '%s'.", recipe_name
+                    )
                 else:
                     logger.info(
-                        f"No stored configuration for group '{recipe_name}'; using in-memory configuration."
+                        "No stored configuration for group '%s'; using in-memory configuration.",
+                        recipe_name,
                     )
             except Exception as e:
-                logger.error(f"Error loading configuration from {RECIPE_PATH}: {e}")
+                logger.error("Error loading configuration from %s: %s", RECIPE_PATH, e)
         else:
             logger.info(
-                f"No recipe file found at {RECIPE_PATH}; using in-memory configuration."
+                "No recipe file found at %s; using in-memory configuration.",
+                RECIPE_PATH,
             )
         return self.recipe.get(recipe_name, {})
 
@@ -224,11 +234,10 @@ class RecipeLoader:
     ) -> None:
         """
         Update the recipe configuration for a specific group using indicator URLs.
-        For each indicator, fetch the XML data from the provided URL and extract transaction filters
-        from the first <Series> element's <SeriesKey> component. The extracted values are merged
-        with any existing configuration, and the URL is stored under "URL". Finally, the updated
-        configuration is written to the recipe file.
-
+        For each indicator, fetch the XML data from the provided URL and extract transaction
+        filters from the first <Series> element's <SeriesKey> component. The extracted values are
+        merged with any existing configuration, and the URL is stored under "URL". Finally, the
+        updated configuration is written to the recipe file.
         :param recipe_name: Key identifying the recipe group to update.
         :param indicator_urls: Mapping of indicator keys to their associated URLs.
         """
@@ -242,45 +251,64 @@ class RecipeLoader:
 
         for indicator, url in indicator_urls.items():
             current_entry = recipe_config.get(indicator, {})
-            logger.info(f"Updating indicator '{indicator}' with URL: {url}")
+            logger.info("Updating indicator '%s' with URL: %s", indicator, url)
             try:
                 response = session.get(url, headers=headers)
                 response.raise_for_status()
                 root = etree.fromstring(response.content)
-                series_list = root.xpath('//*[local-name()="Series"]')
+                # Cast the result of xpath to a list of _Element.
+                series_list = cast(
+                    list[etree._Element], root.xpath('//*[local-name()="Series"]')
+                )
                 if series_list:
                     series = series_list[0]
-                    series_key_list = series.xpath('.//*[local-name()="SeriesKey"]')
+                    series_key_list = cast(
+                        list[etree._Element],
+                        series.xpath('.//*[local-name()="SeriesKey"]'),
+                    )
                     if series_key_list:
                         series_key = series_key_list[0]
-                        new_config = {}
-                        value_elements = series_key.xpath('.//*[local-name()="Value"]')
+                        new_config: Dict[str, str] = {}
+                        value_elements = cast(
+                            list[etree._Element],
+                            series_key.xpath('.//*[local-name()="Value"]'),
+                        )
                         for value_elem in value_elements:
                             key_attr = value_elem.get("id")
                             val_attr = value_elem.get("value")
                             if key_attr and val_attr:
                                 new_config[key_attr] = val_attr
                         if new_config:
-                            # Merge new details with existing configuration.
                             current_entry = self._deep_merge(current_entry, new_config)
                             logger.info(
-                                f"Metadata for indicator '{indicator}' updated with: {new_config}"
+                                "Metadata for indicator '%s' updated with: %s",
+                                indicator,
+                                new_config,
                             )
                         else:
                             logger.warning(
-                                f"No metadata extracted for indicator '{indicator}' from URL: {url}"
+                                "No metadata extracted for indicator '%s' from URL: %s",
+                                indicator,
+                                url,
                             )
                     else:
                         logger.warning(
-                            f"No <SeriesKey> element found in XML from URL: {url} for indicator '{indicator}'"
+                            "No <SeriesKey> element found in XML from URL: %s for indicator '%s'",
+                            url,
+                            indicator,
                         )
                 else:
                     logger.warning(
-                        f"No <Series> element found in XML from URL: {url} for indicator '{indicator}'"
+                        "No <Series> element found in XML from URL: %s for indicator '%s'",
+                        url,
+                        indicator,
                     )
             except Exception as e:
                 logger.error(
-                    f"Failed to update metadata for indicator '{indicator}' from URL {url}: {e}"
+                    "Failed to update metadata for indicator '%s' from URL %s: %s",
+                    indicator,
+                    url,
+                    e,
                 )
             recipe_config[indicator] = current_entry
 
@@ -296,10 +324,14 @@ class RecipeLoader:
             current_overrides[recipe_name] = recipe_config
             self._atomic_write(str(RECIPE_PATH), current_overrides)
             logger.info(
-                f"Recipe group '{recipe_name}' updated successfully in {RECIPE_PATH}."
+                "Recipe group '%s' updated successfully in %s.",
+                recipe_name,
+                RECIPE_PATH,
             )
         except Exception as e:
-            logger.error(f"Error saving updated recipe for group '{recipe_name}': {e}")
+            logger.error(
+                "Error saving updated recipe for group '%s': %s", recipe_name, e
+            )
 
         logger.info("Recipe update completed successfully.")
 
@@ -310,10 +342,10 @@ class RecipeLoader:
         try:
             self._atomic_write(str(RECIPE_PATH), self.recipe)
             logger.info(
-                f"Entire recipe configuration saved successfully to {RECIPE_PATH}."
+                "Entire recipe configuration saved successfully to %s.", RECIPE_PATH
             )
         except Exception as e:
-            logger.error(f"Error saving the recipe configuration: {e}")
+            logger.error("Error saving the recipe configuration: %s", e)
 
     def show(self) -> None:
         """
