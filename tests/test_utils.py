@@ -11,7 +11,10 @@ def test_create_retry_session():
     # Verify that the returned object is an instance of requests.Session.
     assert isinstance(session, requests.Session)
     # Make a sample GET request to a reliable endpoint.
-    response = session.request("GET", "https://httpbin.org/get")
+    response = session.request(
+        "GET",
+        "https://sdmx.oecd.org/public/rest/data/OECD.SDD.NAD,DSD_NASEC1@DF_QSA,1.1/Q..AUT....P3.......?startPeriod=2023-Q3",
+    )
     assert response.status_code == 200
 
 

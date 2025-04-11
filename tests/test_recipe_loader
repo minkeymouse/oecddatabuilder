@@ -109,7 +109,7 @@ def test_update_recipe_from_url(recipe_loader_with_temp_recipe, monkeypatch):
     monkeypatch.setattr(recipe_loader, "create_retry_session", lambda: fake_create_retry_session())
 
     indicator_urls = {
-        "TEST_INDICATOR": "https://example.com/api/test"
+        "TEST_INDICATOR": "https://sdmx.oecd.org/public/rest/data/OECD.SDD.NAD,DSD_NASEC1@DF_QSA,1.1/Q..AUT....P3.......?startPeriod=2023-Q3"
     }
     recipe_loader_with_temp_recipe.update_recipe_from_url("DEFAULT", indicator_urls)
     config = recipe_loader_with_temp_recipe.load("DEFAULT")
@@ -117,3 +117,24 @@ def test_update_recipe_from_url(recipe_loader_with_temp_recipe, monkeypatch):
     # Check that the returned configuration for 'TEST_INDICATOR' now includes the new key.
     assert "TEST_KEY" in config.get("TEST_INDICATOR", {})
     assert config["TEST_INDICATOR"]["TEST_KEY"] == "test_value"
+
+# ------------------------------------------------------------------------------
+# Test for remove functionality
+# ------------------------------------------------------------------------------
+
+def test_remove_recipe_group(recipe_loader_with_temp_recipe):
+    """
+    Test that the remove function correctly removes a recipe group.
+    """
+    # Ensure the group to remove exists.
+    initial_config = recipe_loader_with_temp_recipe.load("DEFAULT")
+    assert "TEST" in initial_config
+
+    # Remove the group.
+    recipe_loader_with_temp_recipe.remove("TEST")
+    
+    # Load the configuration for the removed group.
+    removed_config = recipe_loader_with_temp_recipe.load("TEST")
+    
+    # Expect an empty dictionary since the group is removed.
+    assert removed_config == {}

@@ -37,7 +37,7 @@ def dummy_builder(dummy_config, tmp_path):
         end="2024-Q1",
         freq="Q",
         response_format="csv",
-        base_url="https://example.com/api/",
+        base_url="https://sdmx.oecd.org/public/rest/data/OECD.SDD.NAD,DSD_NASEC1@DF_QSA,1.1/",
         dbpath=str(dbpath),
         request_interval=0,
     )
