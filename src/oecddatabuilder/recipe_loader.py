@@ -144,15 +144,11 @@ class RecipeLoader:
                     logger.info("Loaded recipe configuration from file.")
             except Exception as e:
                 logger.error("Error loading recipe file: %s", e)
-                logger.warning(
-                    "Creating new recipe configuration with default settings."
-                )
+                logger.warning("Creating new recipe configuration with default settings.")
                 self.recipe = copy.deepcopy(_DEFAULT_RECIPE)
                 self.save()
         else:
-            logger.warning(
-                "No recipe.json file found; creating one with default configuration."
-            )
+            logger.warning("No recipe.json file found; creating one with default configuration.")
             self.recipe = copy.deepcopy(_DEFAULT_RECIPE)
             self.save()
 
@@ -173,9 +169,7 @@ class RecipeLoader:
             logger.error("Error performing atomic write to %s: %s", output_file, e)
             raise
 
-    def _deep_merge(
-        self, source: Dict[Any, Any], overrides: Dict[Any, Any]
-    ) -> Dict[Any, Any]:
+    def _deep_merge(self, source: Dict[Any, Any], overrides: Dict[Any, Any]) -> Dict[Any, Any]:
         """
         Recursively merge the 'overrides' dictionary into the 'source' dictionary.
         For keys present in both dictionaries:
@@ -187,11 +181,7 @@ class RecipeLoader:
         """
         merged = copy.deepcopy(source)
         for key, override_value in overrides.items():
-            if (
-                key in merged
-                and isinstance(merged[key], dict)
-                and isinstance(override_value, dict)
-            ):
+            if key in merged and isinstance(merged[key], dict) and isinstance(override_value, dict):
                 merged[key] = self._deep_merge(merged[key], override_value)
             else:
                 merged[key] = override_value
@@ -212,9 +202,7 @@ class RecipeLoader:
                     self.recipe[recipe_name] = self._deep_merge(
                         self.recipe.get(recipe_name, {}), user_config[recipe_name]
                     )
-                    logger.info(
-                        "User configuration merged for group '%s'.", recipe_name
-                    )
+                    logger.info("User configuration merged for group '%s'.", recipe_name)
                 else:
                     logger.info(
                         "No stored configuration for group '%s'; using in-memory configuration.",
@@ -229,9 +217,7 @@ class RecipeLoader:
             )
         return self.recipe.get(recipe_name, {})
 
-    def update_recipe_from_url(
-        self, recipe_name: str, indicator_urls: Dict[str, str]
-    ) -> None:
+    def update_recipe_from_url(self, recipe_name: str, indicator_urls: Dict[str, str]) -> None:
         """
         Update the recipe configuration for a specific group using indicator URLs.
         For each indicator, fetch the XML data from the provided URL and extract transaction
@@ -244,9 +230,7 @@ class RecipeLoader:
         # Retrieve (or initialize) the configuration for the group.
         recipe_config = self.recipe.get(recipe_name, {})
 
-        headers = {
-            "Accept": "application/vnd.sdmx.genericdata+xml; charset=utf-8; version=2.1"
-        }
+        headers = {"Accept": "application/vnd.sdmx.genericdata+xml; charset=utf-8; version=2.1"}
         session = create_retry_session()
 
         for indicator, url in indicator_urls.items():
@@ -257,9 +241,7 @@ class RecipeLoader:
                 response.raise_for_status()
                 root = etree.fromstring(response.content)
                 # Cast the result of xpath to a list of _Element.
-                series_list = cast(
-                    list[etree._Element], root.xpath('//*[local-name()="Series"]')
-                )
+                series_list = cast(list[etree._Element], root.xpath('//*[local-name()="Series"]'))
                 if series_list:
                     series = series_list[0]
                     series_key_list = cast(
@@ -329,9 +311,7 @@ class RecipeLoader:
                 RECIPE_PATH,
             )
         except Exception as e:
-            logger.error(
-                "Error saving updated recipe for group '%s': %s", recipe_name, e
-            )
+            logger.error("Error saving updated recipe for group '%s': %s", recipe_name, e)
 
         logger.info("Recipe update completed successfully.")
 
@@ -341,9 +321,7 @@ class RecipeLoader:
         """
         try:
             self._atomic_write(str(RECIPE_PATH), self.recipe)
-            logger.info(
-                "Entire recipe configuration saved successfully to %s.", RECIPE_PATH
-            )
+            logger.info("Entire recipe configuration saved successfully to %s.", RECIPE_PATH)
         except Exception as e:
             logger.error("Error saving the recipe configuration: %s", e)
 

@@ -112,13 +112,9 @@ class OECDAPI_Databuilder:
         if self.response_format == "csv":
             headers["Accept"] = "application/vnd.sdmx.data+csv; charset=utf-8"
         elif self.response_format == "json":
-            headers[
-                "Accept"
-            ] = "application/vnd.sdmx.data+json; charset=utf-8; version=2"
+            headers["Accept"] = "application/vnd.sdmx.data+json; charset=utf-8; version=2"
         elif self.response_format == "xml":
-            headers[
-                "Accept"
-            ] = "application/vnd.sdmx.genericdata+xml; charset=utf-8; version=2.1"
+            headers["Accept"] = "application/vnd.sdmx.genericdata+xml; charset=utf-8; version=2.1"
         else:
             raise ValueError("response_format must be one of: csv, json, xml")
         return headers
@@ -159,9 +155,7 @@ class OECDAPI_Databuilder:
             all_chunks: List[pd.DataFrame] = []
             time_chunks = self._build_time_chunks(period_range, chunk_size)
 
-            logger.info(
-                f"For indicator '{indicator}', processing time chunks: {time_chunks}"
-            )
+            logger.info(f"For indicator '{indicator}', processing time chunks: {time_chunks}")
 
             filter_values = [conf.get(key, "") for key in filter_order]
             filter_url = ".".join(filter_values)
@@ -172,9 +166,7 @@ class OECDAPI_Databuilder:
 
             headers = self._get_headers()
 
-            for chunk_start, chunk_end in tqdm(
-                time_chunks, desc=f"Downloading {indicator} Data"
-            ):
+            for chunk_start, chunk_end in tqdm(time_chunks, desc=f"Downloading {indicator} Data"):
                 query_url = (
                     f"{full_url}?startPeriod={chunk_start}&endPeriod={chunk_end}"
                     "&dimensionAtObservation=TIME_PERIOD"
@@ -205,9 +197,7 @@ class OECDAPI_Databuilder:
             if all_chunks:
                 indicator_df = pd.concat(all_chunks, ignore_index=True)
             else:
-                indicator_df = pd.DataFrame(
-                    columns=["REF_AREA", "TIME_PERIOD", "OBS_VALUE"]
-                )
+                indicator_df = pd.DataFrame(columns=["REF_AREA", "TIME_PERIOD", "OBS_VALUE"])
 
             csv_filename = self.dbpath / f"{indicator}.csv"
             indicator_df.to_csv(csv_filename, index=False)
@@ -232,9 +222,7 @@ class OECDAPI_Databuilder:
             elif self.freq == "Y":
                 return pd.Period(date_str, freq="A").start_time
             else:
-                logger.warning(
-                    f"Unsupported frequency '{self.freq}' for date conversion."
-                )
+                logger.warning(f"Unsupported frequency '{self.freq}' for date conversion.")
                 return date_str
         except Exception as error:
             logger.error(f"Error converting date string '{date_str}': {error}")

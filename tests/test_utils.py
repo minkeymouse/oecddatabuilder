@@ -24,6 +24,4 @@ def test_api_connection_logs(caplog):
     test_api_connection()
     # Check that one of the expected log messages appears.
     # (Either "API connection successful" or "API Test failed" should be logged.)
-    assert (
-        "API connection successful" in caplog.text or "API Test failed" in caplog.text
-    )
+    assert "API connection successful" in caplog.text or "API Test failed" in caplog.text
