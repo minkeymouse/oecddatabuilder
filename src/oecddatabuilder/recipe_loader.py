@@ -354,3 +354,31 @@ class RecipeLoader:
         import pprint
 
         pprint.pprint(self.recipe)
+
+    def remove(self, recipe_name: str) -> None:
+        """
+        Remove the specified recipe group from the configuration.
+        Updates both in-memory and the recipe file.
+        If the recipe group does not exist, logs a warning.
+        :param recipe_name: Key identifying the recipe group to remove.
+        """
+        if recipe_name in self.recipe:
+            del self.recipe[recipe_name]
+            try:
+                if RECIPE_PATH.exists():
+                    with RECIPE_PATH.open("r", encoding="utf-8") as f:
+                        current_overrides = json.load(f)
+                else:
+                    current_overrides = {}
+                if recipe_name in current_overrides:
+                    del current_overrides[recipe_name]
+                self._atomic_write(str(RECIPE_PATH), current_overrides)
+                logger.info(
+                    "Recipe group '%s' removed successfully from %s.",
+                    recipe_name,
+                    RECIPE_PATH,
+                )
+            except Exception as e:
+                logger.error("Error removing recipe group '%s': %s", recipe_name, e)
+        else:
+            logger.warning("Recipe group '%s' does not exist.", recipe_name)
