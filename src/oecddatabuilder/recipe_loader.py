@@ -20,9 +20,8 @@ from .utils import create_retry_session  # Import the retry session helper from 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# Compute the base and config directories relative to this file.
-BASE_DIR = Path(__file__).resolve().parent
-RECIPE_PATH = (BASE_DIR / ".." / ".." / "config" / "recipe.json").resolve()
+RECIPE_PATH = (Path.cwd() / "recipe" / "recipe.json").resolve()
+RECIPE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 # The built-in defaults are now placed under the "DEFAULT" group.
 _DEFAULT_RECIPE = {

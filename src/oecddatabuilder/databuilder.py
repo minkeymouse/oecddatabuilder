@@ -19,9 +19,8 @@ from .utils import create_retry_session  # Retry session helper
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# Compute the base directory and the data directory.
-BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = (BASE_DIR / ".." / ".." / "datasets" / "OECD").resolve()
+DATA_DIR = Path.cwd() / "datasets" / "OECD"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class OECDAPI_Databuilder:

@@ -1,6 +1,6 @@
 [project]
 name = "oecddatabuilder"
-version = "0.1.0"
+version = "0.1.1"
 description = "This is a tool for using OECD API builder and creating multiple time series dataframe for economic analysis purposes"
 authors = [
     {name = "minkeymouse",email = "minkey.chang@gmail.com"}

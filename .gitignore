@@ -71,7 +71,7 @@ dmypy.json
 Thumbs.db
 
 # Recipe file
-config/
+recipe/
 
 # Data directories (adjust these if your datasets are versioned)
 datasets/
