@@ -75,6 +75,7 @@ config/
 
 # Data directories (adjust these if your datasets are versioned)
 datasets/
+datasets/OECD/
 
 # Temporary files
 tmp/
