@@ -1,3 +1,80 @@
-config/
-datasets/*
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
 
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Poetry virtual environment (if created inside the project directory)
+.poetry/
+
+# Testing / coverage
+.cache/
+.tox/
+.pytest_cache/
+coverage.xml
+.coverage
+.coverage.*
+
+# Mypy cache
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pre-commit cache and hooks (if any local caches are present)
+.pre-commit/
+.pre-commit-config.yaml  # (if you want to version-control your pre-commit config, remove this line)
+
+# IDE / Editor directories and files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Log files
+*.log
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Recipe file
+config/
+
+# Data directories (adjust these if your datasets are versioned)
+datasets/
+
+# Temporary files
+tmp/
