@@ -95,6 +95,9 @@ class OECDAPI_Databuilder:
             elif self.freq == "Y":
                 chunk_start = str(chunk[0])
                 chunk_end = str(chunk[-1])
+            elif self.freq == "A":
+                chunk_start = str(chunk[0])
+                chunk_end = str(chunk[-1])
             elif self.freq == "M":
                 chunk_start = chunk[0].strftime("%Y-%m")
                 chunk_end = chunk[-1].strftime("%Y-%m")
