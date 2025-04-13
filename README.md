@@ -42,6 +42,8 @@ Let's walk through a minimal example. Suppose we have a recipe (configuration) t
 2. **Use `RecipeLoader` to load the recipe** and possibly modify it.
 3. **Use `OECDAPI_Databuilder` to fetch data according to the recipe** and get a combined pandas DataFrame.
 
+![OECD_API_DEVELOPER](./docs/image/API_demo.png)
+
 Here's how you might do it in code(Suppose you already have recipe defined):
 
 ```python
@@ -154,6 +156,8 @@ my_recipes.update_recipe_from_url(
                             }
 )
 ```
+
+![url_structure](./docs/image/url_structure.png)
 
 This will write the updated configuration to the file from xml response of API, so you can reuse it later.
 
